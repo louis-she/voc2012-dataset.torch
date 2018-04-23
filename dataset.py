@@ -49,14 +49,27 @@ class VOC2012ClassSegmentation(VOC2012):
         scales = ( self.input_shape[0] / image.shape[0], self.input_shape[1] / image.shape[1] )
         image = self.resize(image)
         bboxes, labels = self.get_bboxes(image_id, scales)
-        return image, bboxes, labels
 
-        # original_mask = self.get_mask(image_id)
-        # class_mask = self.convert_color_mask_to_class_mask(original_mask)
-        # mask = self.resize(class_mask)
-        # masks, labels = self.get_masks(mask)
+        original_mask = self.get_mask(image_id)
+        class_mask = self.convert_color_mask_to_class_mask(original_mask)
+        bbox_masks = self.get_masks_by_bboxes_and_labels(class_mask, bboxes, labels)
+        return image, bboxes, labels, bbox_masks
 
-        # return original_mask, class_mask, mask, image, masks, labels,'-'
+    def get_masks_by_bboxes_and_labels(self, mask, bboxes, labels):
+        masks = []
+        for i in range(len(bboxes)):
+            bbox = bboxes[i]
+            label = labels[i]
+            # crop the bbox
+            copy_mask = mask.copy()
+            box_area = copy_mask[bbox[0]:bbox[2], bbox[1]:bbox[3]]
+
+            # keep the value which is equal to label
+            # which means set other value all to zero
+            mask_index = box_area == label
+            box_area[~mask_index] = 0
+            masks.append(box_area)
+        return masks
 
     def get_bboxes(self, image_id, scales=(1,1)):
         """get bounding boxes from annotations for given image id,
