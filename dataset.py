@@ -42,7 +42,7 @@ class VOC2012ClassSegmentation(VOC2012):
 
     def __getitem__(self, index):
         image_id = self.image_ids[index]
-        return getitem(image_id)
+        return self.getitem(image_id)
 
     def getitem(self, image_id):
         image = self.get_image(image_id)
