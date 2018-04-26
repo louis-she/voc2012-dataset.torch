@@ -7,7 +7,7 @@ import numpy as np
 import cv2
 
 class VOC2012(Dataset):
-    def __init__(self, voc2012_basedir, mode, input_shape=(512, 512)):
+    def __init__(self, voc2012_basedir, mode, input_shape=(224, 224)):
         super().__init__()
         self.voc2012_basedir = voc2012_basedir
         self.mode = mode
@@ -24,11 +24,12 @@ class VOC2012(Dataset):
         return cv2.imread(path)[:,:,::-1]
 
 class VOC2012ClassSegmentation(VOC2012):
-    def __init__(self, voc2012_basedir, mode='train'):
+    def __init__(self, voc2012_basedir, mode='train', mask_shape=(56, 56)):
         super().__init__(voc2012_basedir, mode)
         self.color_map = self.create_color_map()
         self.class_mask_dir = join(self.voc2012_basedir, 'SegmentationClass')
         self.image_ids = self.get_image_ids()
+        self.mask_shape = mask_shape
 
     def get_image_ids(self):
         segmentation_file = join(self.voc2012_basedir, 'ImageSets',
@@ -68,8 +69,14 @@ class VOC2012ClassSegmentation(VOC2012):
             # which means set other value all to zero
             mask_index = box_area == label
             box_area[~mask_index] = 0
-            masks.append(box_area)
-        return masks
+
+            # resize the mask to fixed size for feeding to the network
+            # this step is reversible if we have the corresponding bounding box
+            # and original image shape
+            box_area_resized = cv2.resize(box_area, self.mask_shape)
+
+            masks.append(box_area_resized)
+        return np.stack(masks)
 
     def get_bboxes(self, image_id, scales=(1,1)):
         """get bounding boxes from annotations for given image id,
@@ -86,21 +93,7 @@ class VOC2012ClassSegmentation(VOC2012):
             label = obj.find('name').text
             bboxes.append(coordinates)
             labels.append(self.labels.index(label))
-        return bboxes, labels
-
-    def get_masks(self, mask):
-        """return all mask from a single mask image by class
-        """
-        masks = np.ndarray( (0, *mask.shape) )
-        labels = []
-        for i in range(1, len(self.labels) - 1):
-            copy_mask = mask.copy()
-            bool_masks = copy_mask == i
-            if np.any(bool_masks):
-                copy_mask[ ~bool_masks ] = 0
-                masks = np.concatenate((masks, [copy_mask]), axis=0)
-                labels.append(self.labels[i])
-        return masks, labels
+        return np.stack(bboxes), np.stack(labels)
 
     def extract_bboxes(self, masks):
         """get bounding boxes from masks
