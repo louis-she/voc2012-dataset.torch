@@ -1,13 +1,14 @@
 from os.path import join
 from itertools import product
 import xml.etree.ElementTree as ET
+import pdb
 
 from torch.utils.data import Dataset
 import numpy as np
 import cv2
 
 class VOC2012(Dataset):
-    def __init__(self, voc2012_basedir, mode, input_shape=(224, 224)):
+    def __init__(self, voc2012_basedir, mode, input_shape=(512, 512)):
         super().__init__()
         self.voc2012_basedir = voc2012_basedir
         self.mode = mode
@@ -53,6 +54,7 @@ class VOC2012ClassSegmentation(VOC2012):
 
         original_mask = self.get_mask(image_id)
         class_mask = self.convert_color_mask_to_class_mask(original_mask)
+        class_mask = self.resize(class_mask)
         bbox_masks = self.get_masks_by_bboxes_and_labels(class_mask, bboxes, labels)
         return image, bboxes, labels, bbox_masks
 
@@ -63,8 +65,8 @@ class VOC2012ClassSegmentation(VOC2012):
             label = labels[i]
             # crop the bbox
             copy_mask = mask.copy()
-            box_area = copy_mask[bbox[0]:bbox[2], bbox[1]:bbox[3]]
 
+            box_area = copy_mask[bbox[0]:bbox[2], bbox[1]:bbox[3]]
             # keep the value which is equal to label
             # which means set other value all to zero
             mask_index = box_area == label
