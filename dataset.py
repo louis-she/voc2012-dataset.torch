@@ -1,7 +1,6 @@
 from os.path import join
 from itertools import product
 import xml.etree.ElementTree as ET
-import pdb
 
 from torch.utils.data import Dataset
 import numpy as np
@@ -40,7 +39,7 @@ class VOC2012ClassSegmentation(VOC2012):
             return f.read().splitlines()
 
     def __len__(self):
-        return len(self.train_image_ids)
+        return len(self.image_ids)
 
     def __getitem__(self, index):
         image_id = self.image_ids[index]
@@ -56,6 +55,9 @@ class VOC2012ClassSegmentation(VOC2012):
         class_mask = self.convert_color_mask_to_class_mask(original_mask)
         class_mask = self.resize(class_mask)
         bbox_masks = self.get_masks_by_bboxes_and_labels(class_mask, bboxes, labels)
+
+        if len(bboxes.shape) == 1:
+            bboxes = bboxes[np.newaxis, ...]
         return image, bboxes, labels, bbox_masks
 
     def get_masks_by_bboxes_and_labels(self, mask, bboxes, labels):
